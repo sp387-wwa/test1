@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Płuca Planety - SP387</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyAGxPJ2tfii603Vm8vmHNVH8FfQjBmBWRQ",
+            authDomain: "sp387-quiz1.firebaseapp.com",
+            projectId: "sp387-quiz1",
+            storageBucket: "sp387-quiz1.firebasestorage.app",
+            messagingSenderId: "787924877967",
+            appId: "1:787924877967:web:c3a8277c3af88d3e3966fa"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'sp387-eko-quiz-v2';
+
+        window.saveResult = async (userData, score) => {
+            try {
+                await signInAnonymously(auth);
+                if (auth.currentUser) {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'scores'), {
+                        ...userData,
+                        score: score,
+                        total: 12,
+                        timestamp: new Date(),
+                        uid: auth.currentUser.uid
+                    });
+                    return true;
+                }
+            } catch (e) {
+                console.error("Firebase Error:", e);
+                return false;
+            }
+        };
+    </script>
+    <style>
+        /* Usunięcie zaokrągleń globalnie */
+        * { border-radius: 0 !important; }
+        
+        body { font-family: 'Helvetica', 'Arial', sans-serif; background-color: #f1f5f9; color: #0f172a; }
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .drag-item { cursor: grab; touch-action: none; border: 2px solid #064e3b; }
+        .drag-item:active { cursor: grabbing; }
+        .drop-zone { border: 2px dashed #064e3b; min-width: 120px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin: 0 5px; background: #fff; }
+        .drop-zone.active { border-color: #166534; background: #f0fdf4; }
+
+        @keyframes pulse-leaf {
+            0%, 100% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.05); filter: brightness(1.1); }
+        }
+        .leaf-anim { animation: pulse-leaf 3s ease-in-out infinite; transform-origin: center; }
+        
+        /* Styl dla inputów - ostre krawędzie */
+        input { border: 2px solid #cbd5e1; }
+        input:focus { border-color: #059669; outline: none; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <nav class="bg-[#064e3b] text-white p-6 border-b-4 border-[#043d2e]">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-black tracking-tighter uppercase">PŁUCA PLANETY</h1>
+        </div>
+    </nav>
+
+    <main class="flex-grow container mx-auto max-w-2xl p-6">
+        <!-- Start Screen -->
+        <div id="start-screen" class="bg-white p-10 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)] border-2 border-black fade-in">
+            <h2 class="text-3xl font-black mb-6 text-[#064e3b] uppercase tracking-tight">Dlaczego las to nasz interes?</h2>
+            <p class="text-gray-600 mb-8 border-l-4 border-green-600 pl-4">Rozwiąż test z okazji Dnia Ziemi 2026. <br><b>Uwaga:</b> Test można wypełnić tylko raz.</p>
+            
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Imię i Nazwisko</label>
+                    <input type="text" id="user-name" class="w-full p-4 bg-white border-2 border-black transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Klasa</label>
+                    <input type="text" id="user-class" class="w-full p-4 bg-white border-2 border-black transition-all">
+                </div>
+                <button onclick="startQuiz()" class="w-full bg-[#059669] hover:bg-black text-white font-bold py-5 uppercase tracking-widest text-sm transition-all active:translate-y-1 active:translate-x-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none border-2 border-black">
+                    Rozpocznij Test
+                </button>
+            </div>
+        </div>
+
+        <!-- Quiz Screen -->
+        <div id="quiz-screen" class="hidden fade-in">
+            <div class="mb-6 h-4 w-full bg-gray-200 border-2 border-black">
+                <div id="progress-bar" class="h-full bg-[#059669] transition-all duration-300" style="width: 0%"></div>
+            </div>
+
+            <div id="q-container" class="bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)] border-2 border-black overflow-hidden">
+                <div id="visual-zone" class="w-full bg-slate-100 flex items-center justify-center p-6 border-b-2 border-black">
+                </div>
+                
+                <div class="p-8">
+                    <div class="flex justify-between items-center mb-6">
+                        <span id="q-type-badge" class="text-[10px] font-bold bg-black text-white px-3 py-1 uppercase">Zadanie</span>
+                        <span id="q-counter" class="text-lg font-black text-green-800">1/12</span>
+                    </div>
+                    <h3 id="question-text" class="text-2xl font-black mb-8 leading-tight text-gray-900 uppercase tracking-tighter">...</h3>
+                    
+                    <div id="interaction-zone" class="space-y-4">
+                        <!-- Opcje sterowane przez JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="result-screen" class="hidden text-center fade-in">
+            <div class="bg-white p-12 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)] border-2 border-black">
+                <div id="status-icon" class="mb-6 flex justify-center">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </div>
+                <h2 class="text-6xl font-black text-[#064e3b] mb-4 uppercase" id="final-score">0/12</h2>
+                <p id="result-text" class="text-gray-600 mb-8 font-bold uppercase tracking-widest text-sm">Wynik został zapisany w systemie szkoły.</p>
+                <div class="p-6 bg-black text-white text-sm font-bold border-2 border-black">
+                    TEST ZAKOŃCZONY. DZIĘKUJEMY ZA UDZIAŁ! <br>POZDRAWIAMY KL. 8A!
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="p-8 text-center text-gray-500">
+        <p class="text-[10px] font-bold uppercase tracking-[0.1em]">Dzień Ziemi 2026 • SP387 W-wa</p>
+    </footer>
+
+    <script>
+        const questions = [
+            {
+                type: "choice",
+                text: "Co symbolizuje ten proces na animacji?",
+                options: ["Fotosyntezę", "Suszę", "Wypalanie traw", "Gnicie liści"],
+                correct: 0,
+                visual: { type: 'anim', content: `<svg viewBox="0 0 100 100" width="150"><path class="leaf-anim" d="M50 20 C70 40 70 70 50 90 C30 70 30 40 50 20" fill="#22c55e"/><circle cx="50" cy="50" r="5" fill="white" opacity="0.5"><animate attributeName="r" values="5;15" dur="2s" infinite/><animate attributeName="opacity" values="0.5;0" dur="2s" infinite/></circle></svg>` }
+            },
+            {
+                type: "choice",
+                text: "Jak nazywamy zdolność lasu do chłodzenia okolicy?",
+                options: ["Leśny wiatrak", "Termowizja", "Naturalna klimatyzacja", "Efekt cieplarniany"],
+                correct: 2,
+                visual: { type: 'img', content: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=400&q=80' }
+            },
+            {
+                type: "text-only",
+                text: "Lasy deszczowe Amazonii są często nazywane...",
+                options: ["Sercem Ziemi", "Płucami Ziemi", "Brzuchem Ziemi", "Głową Ziemi"],
+                correct: 1
+            },
+            {
+                type: "true-false",
+                text: "Czy jedno dorosłe drzewo może wyprodukować tlen dla 2 osób na cały rok?",
+                options: ["PRAWDA", "FAŁSZ"],
+                correct: 0,
+                visual: { type: 'anim', content: `<svg viewBox="0 0 100 100" width="120"><rect x="10" y="10" width="80" height="80" fill="none" stroke="#000" stroke-width="2"/><circle cx="50" cy="50" r="30" fill="#e0f2fe"/><path d="M50 30 L50 70 M40 50 L60 50" stroke="#0369a1" stroke-width="4"/></svg>` }
+            },
+            {
+                type: "drag",
+                text: "Przeciągnij brakujące słowo do zdania poniżej:",
+                sentence: "Las działa jak wielka ______, która zatrzymuje wodę deszczową.",
+                options: ["gąbka", "rura", "ściana"],
+                correct: "gąbka",
+                visual: { type: 'img', content: 'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?auto=format&fit=crop&w=400&q=80' }
+            },
+            {
+                type: "text-only",
+                text: "Jak nazywa się proces, w którym drzewa oddają wodę do atmosfery?",
+                options: ["Transpiracja", "Transport", "Transkrypcja", "Transformacja"],
+                correct: 0
+            },
+            {
+                type: "choice",
+                text: "Co ten wykres mówi o temperaturze w lesie?",
+                options: ["Jest tam cieplej niż na betonie", "Temperatura jest stabilna i niższa", "W lesie nie ma temperatury", "Drzewa przyciągają słońce"],
+                correct: 1,
+                visual: { type: 'anim', content: `<svg viewBox="0 0 100 100" width="150"><rect width="100" height="100" fill="#fff" stroke="#000"/><path d="M10 80 L30 40 L50 60 L70 20 L90 50" fill="none" stroke="#ef4444" stroke-width="2"/><path d="M10 50 H90" stroke="#22c55e" stroke-width="4" stroke-dasharray="4,4"/></svg>` }
+            },
+            {
+                type: "true-false",
+                text: "Czy lasy pomagają w walce ze smogiem, filtrując pyły z powietrza?",
+                options: ["TAK", "NIE"],
+                correct: 0
+            },
+            {
+                type: "choice",
+                text: "Zgadnij: Co przedstawia ten powiększony element drzewa?",
+                options: ["Sieć korzeni (mikoryza)", "Zniszczoną korę", "Pajęczynę", "Mapę dróg"],
+                correct: 0,
+                visual: { type: 'anim', content: `<svg viewBox="0 0 100 100" width="140"><path d="M10 10 Q30 50 10 90 M30 10 Q50 50 30 90 M50 10 Q70 50 50 90" stroke="#78350f" fill="none" opacity="0.3"/><path d="M10 50 Q50 50 90 50 M10 30 Q50 70 90 30" stroke="#f59e0b" fill="none" stroke-width="1"><animate attributeName="stroke-dasharray" values="0,100;100,0" dur="3s" infinite/></path></svg>` }
+            },
+            {
+                type: "text-only",
+                text: "Większość leków naturalnych pochodzi z...",
+                options: ["Fabryk", "Lasów i roślin", "Oceanów", "Laboratoriów kosmicznych"],
+                correct: 1
+            },
+            {
+                type: "choice",
+                text: "Jak las wpływa na hałas miejski?",
+                options: ["Potęguje go", "Tłumi i rozprasza dźwięki", "Przesuwa go w górę", "Nie ma żadnego wpływu"],
+                correct: 1,
+                visual: { type: 'img', content: 'https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=400&q=80' }
+            },
+            {
+                type: "choice",
+                text: "Co przedstawia ta finałowa animacja?",
+                options: ["Rosnący dom", "Płuca Planety", "Zielony trójkąt", "Wiatrak"],
+                correct: 1,
+                visual: { type: 'anim', content: `<svg viewBox="0 0 100 100" width="150"><path class="leaf-anim" d="M45 30 Q35 30 35 50 T45 70 L50 80 L55 70 Q65 70 65 50 T55 30 Z" fill="#059669" stroke="#000" stroke-width="1"/></svg>` }
+            }
+        ];
+
+        let currentQuestion = 0;
+        let score = 0;
+        let userData = { name: "", class: "" };
+        let draggedValue = null;
+
+        function startQuiz() {
+            const name = document.getElementById('user-name').value.trim();
+            const uClass = document.getElementById('user-class').value.trim();
+            if (!name || !uClass) {
+                alert("Wypełnij oba pola!");
+                return;
+            }
+            userData = { name, class: uClass };
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            showQuestion();
+        }
+
+        function showQuestion() {
+            const q = questions[currentQuestion];
+            const visualZone = document.getElementById('visual-zone');
+            const interactionZone = document.getElementById('interaction-zone');
+            
+            document.getElementById('q-counter').innerText = `${currentQuestion + 1}/12`;
+            document.getElementById('question-text').innerText = q.text;
+            document.getElementById('q-type-badge').innerText = q.type === 'true-false' ? "Prawda/Fałsz" : (q.type === 'drag' ? "Przeciągnij" : "Wybór");
+
+            if (q.visual) {
+                visualZone.style.display = 'flex';
+                if (q.visual.type === 'anim') {
+                    visualZone.innerHTML = q.visual.content;
+                } else {
+                    visualZone.innerHTML = `<img src="${q.visual.content}" class="max-h-48 border-2 border-black" alt="Ilustracja">`;
+                }
+            } else {
+                visualZone.style.display = 'none';
+            }
+
+            interactionZone.innerHTML = '';
+            if (q.type === 'choice' || q.type === 'text-only' || q.type === 'true-false') {
+                q.options.forEach((opt, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = "w-full text-left p-5 border-2 border-black bg-white hover:bg-black hover:text-white font-bold text-sm transition-all uppercase tracking-tight";
+                    btn.innerText = opt;
+                    btn.onclick = () => handleAnswer(idx);
+                    interactionZone.appendChild(btn);
+                });
+            } else if (q.type === 'drag') {
+                const sentenceDiv = document.createElement('div');
+                sentenceDiv.className = "mb-8 text-lg font-bold p-6 bg-slate-50 border-2 border-black";
+                const parts = q.sentence.split('______');
+                sentenceDiv.innerHTML = `${parts[0]}<div id="drop-target" class="drop-zone" ondrop="drop(event)" ondragover="allowDrop(event)">?</div>${parts[1]}`;
+                interactionZone.appendChild(sentenceDiv);
+
+                const itemsContainer = document.createElement('div');
+                itemsContainer.className = "flex gap-4 justify-center";
+                q.options.forEach(opt => {
+                    const item = document.createElement('div');
+                    item.className = "drag-item bg-white border-2 border-black text-black px-6 py-3 font-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase text-xs";
+                    item.innerText = opt;
+                    item.draggable = true;
+                    item.ondragstart = (e) => { draggedValue = opt; e.dataTransfer.setData("text", opt); };
+                    
+                    item.ontouchstart = (e) => { draggedValue = opt; item.style.transform = "scale(1.1)"; };
+                    item.ontouchend = (e) => {
+                        item.style.transform = "scale(1)";
+                        const dropZone = document.getElementById('drop-target');
+                        if (!dropZone) return;
+                        const rect = dropZone.getBoundingClientRect();
+                        const touch = e.changedTouches[0];
+                        if (touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+                            dropZone.innerText = draggedValue;
+                            dropZone.classList.add('bg-green-100');
+                            setTimeout(() => handleAnswer(draggedValue), 500);
+                        }
+                    };
+
+                    itemsContainer.appendChild(item);
+                });
+                interactionZone.appendChild(itemsContainer);
+            }
+        }
+
+        window.allowDrop = (ev) => { ev.preventDefault(); ev.target.classList.add('active'); };
+        window.drop = (ev) => {
+            ev.preventDefault();
+            const data = ev.dataTransfer.getData("text") || draggedValue;
+            ev.target.innerText = data;
+            ev.target.classList.remove('active');
+            ev.target.classList.add('bg-green-100');
+            setTimeout(() => handleAnswer(data), 500);
+        };
+
+        function handleAnswer(ans) {
+            const q = questions[currentQuestion];
+            let isCorrect = false;
+
+            if (q.type === 'drag') {
+                isCorrect = (ans === q.correct);
+            } else {
+                isCorrect = (ans === q.correct);
+            }
+
+            if (isCorrect) score++;
+            currentQuestion++;
+            
+            const progressBar = document.getElementById('progress-bar');
+            if (progressBar) {
+                const progress = (currentQuestion / questions.length) * 100;
+                progressBar.style.width = `${progress}%`;
+            }
+
+            if (currentQuestion < questions.length) {
+                showQuestion();
+            } else {
+                finishQuiz();
+            }
+        }
+
+        async function finishQuiz() {
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            document.getElementById('final-score').innerText = `${score}/12`;
+            
+            const ok = await window.saveResult(userData, score);
+            if (!ok) {
+                const resultText = document.getElementById('result-text');
+                if (resultText) {
+                    resultText.innerHTML = "Wystąpił błąd zapisu <br><b>POWIADOM OSOBĘ ZE STANOWISKA!</b><br>Twój wynik to " + score + "/12.";
+                }
+            }
+        }
+    </script>
+</body>
+</html>
